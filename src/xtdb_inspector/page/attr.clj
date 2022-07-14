@@ -17,7 +17,7 @@
     (when kw'
       (keyword ns' kw'))))
 
-(defn- render-attr-values-tab [xtdb-node attr]
+(defn- render-attr-values-tab [prefix xtdb-node attr]
   (let [[limit-source set-limit!] (source/use-state 100)
         values (source/computed
                 (fn [limit]
@@ -36,10 +36,10 @@
      (ui.table/table
       {:columns [{:label "Document" :accessor :doc
                   :render (fn [doc]
-                            (ui/format-value (constantly true) doc))}
+                            (ui/format-value prefix (constantly true) doc))}
                  {:label "Value" :accessor :val
                   :render (fn [{:keys [id? v]}]
-                            (ui/format-value (constantly id?) v))}]
+                            (ui/format-value prefix (constantly id?) v))}]
        :key first}
       values)
      (h/html
@@ -73,18 +73,18 @@
                                  :group-by ['v]
                                  :order-by '[[(count v) :desc]]}))])))
 
-(defn- render-attr-values [{:keys [xtdb-node]} attr]
+(defn- render-attr-values [prefix {:keys [xtdb-node]} attr]
   (h/html
    (ui.tabs/tabs
     {:label "Values"
-     :render #(render-attr-values-tab xtdb-node attr)}
+     :render #(render-attr-values-tab prefix xtdb-node attr)}
     {:label "Graphs"
      :render #(render-attr-graphs-tab xtdb-node attr)})))
 
-(defn- render-attr-listing [{:keys [xtdb-node]}]
+(defn- render-attr-listing [prefix {:keys [xtdb-node]}]
   (ui.table/table
    {:columns [{:label "Attribute" :accessor first
-               :render #(ui/link (str "/attr/" (enc (subs (str %) 1)))
+               :render #(ui/link (str prefix "/attr/" (enc (subs (str %) 1)))
                                  (pr-str %))}
               {:label "Values count" :accessor second}]
     :key first
@@ -92,7 +92,7 @@
    (future
      (xt/attribute-stats xtdb-node))))
 
-(defn render [{:keys [xtdb-node request] :as ctx}]
+(defn render [prefix {:keys [xtdb-node request] :as ctx}]
   (if-let [attr (request-attr request)]
-    (render-attr-values ctx attr)
-    (render-attr-listing ctx)))
+    (render-attr-values prefix ctx attr)
+    (render-attr-listing prefix ctx)))

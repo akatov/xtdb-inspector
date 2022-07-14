@@ -8,7 +8,7 @@
             [xtdb-inspector.id :as id]
             [ripley.alpine :refer [x-data] :as x]))
 
-(defn search [search! results]
+(defn search [prefix search! results]
   (x-data
    {:data {:term "" :search false}
     :source (source/computed
@@ -18,7 +18,7 @@
                           (fn [[e v a]]
                             ;; id, href, attr, value
                             [(pr-str e)
-                             (str "/doc/" (id/doc-id-param e))
+                             (str prefix "/doc/" (id/doc-id-param e))
                              (pr-str a)
                              (pr-str v)]) results)})
              results)
@@ -78,7 +78,7 @@
    ["/tx" "Transactions"]
    ["/dashboard" "Dashboards"]])
 
-(defn app-bar [ctx search! results]
+(defn app-bar [prefix ctx search! results]
   (h/html
    [:nav.navbar.bg-base-100
     [:div.flex-1
@@ -86,12 +86,12 @@
 
     [:div.navbar-start
      [:ul.menu.menu-compact.lg:menu-horizontal.md:menu-horizontal
-      [::h/for [[href label] links]
+      [::h/for [[href label] (->> links (map (fn [[path name]] [(str prefix path) name])))]
        [:li
         [:a {:href href} label]]]]]
 
     [:div.navbar-end; flex-none.gap-2
-     (search search! results)]]))
+     (search prefix search! results)]]))
 
 
 (defn lucene-search! [xtdb-node set-results! text]
@@ -107,7 +107,7 @@
               :order-by [[s :desc]]
               :in [text]} text))}))
 
-(defn render-page [{:keys [xtdb-node] :as ctx} page-content-fn]
+(defn render-page [prefix {:keys [xtdb-node] :as ctx} page-content-fn]
   (let [[results set-results!] (source/use-state [])
         [show-metrics? set-show-metrics!] (source/use-state false)]
     (h/out! "<!DOCTYPE html>\n")
@@ -115,14 +115,14 @@
      [:html {:data-theme "light"}
       [:head
        [:meta {:charset "UTF-8"}]
-       [:link {:rel "stylesheet" :href "/xtdb-inspector.css"}]
+       [:link {:rel "stylesheet" :href (str prefix "/xtdb-inspector.css")}]
        [:style
         ".hover-trigger .hover-target { display: none; }"
         ".hover-trigger:hover .hover-target { display: block; }"]
        (ripley.alpine/alpine-js-script)
-       (h/live-client-script "/__ripley-live")]
+       (h/live-client-script (str prefix "/__ripley-live"))]
       [:body
-       (app-bar ctx (partial lucene-search! xtdb-node set-results!) results)
+       (app-bar prefix ctx (partial lucene-search! xtdb-node set-results!) results)
        [:div.page
         (page-content-fn)]
        [::h/live show-metrics?
@@ -135,6 +135,6 @@
             [:button {:on-click #(set-show-metrics! (not show?))}
              [::h/if show? "- hide metrics" "+ show metrics"]]]))]]])))
 
-(defn page-response [ctx page-content-fn]
+(defn page-response [prefix ctx page-content-fn]
   (h/render-response
-   #(render-page ctx page-content-fn)))
+   #(render-page prefix ctx page-content-fn)))

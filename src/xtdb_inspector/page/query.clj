@@ -152,7 +152,7 @@
     :else
     (format "%.2fms" ms)))
 
-(defn query-results-table [db headers result-source]
+(defn query-results-table [prefix db headers result-source]
   (ui.table/table
    {:key identity
     ;; Set render method that uses format value
@@ -162,11 +162,11 @@
                                       id?
                                       (id/valid-id? db v)))]
                        (assoc hdr
-                              :render (partial ui/format-value is-id?))))
+                              :render (partial ui/format-value prefix is-id?))))
                    headers)}
    result-source))
 
-(defn render-results [xtdb-node {:keys [basis running? results query timing] :as r}]
+(defn render-results [prefix xtdb-node {:keys [basis running? results query timing] :as r}]
   (cond
     ;; Query is running
     running?
@@ -193,7 +193,7 @@
          {:label "Table"
           :render
           (fn []
-            (query-results-table db headers result-source))}
+            (query-results-table prefix db headers result-source))}
          (when (bar-chartable? headers)
            {:label "Bar chart"
             :render
@@ -275,7 +275,7 @@
          name)))
 
 
-(defn render [{:keys [xtdb-node request]}]
+(defn render [prefix {:keys [xtdb-node request]}]
   (let [query-text (or
                     (some->> request :params :query
                              (saved-query-by-name (xt/db xtdb-node)))
@@ -321,4 +321,4 @@
 
       [::h/live (source/c= (select-keys %state
                                         [:basis :running? :results :query :timing]))
-       (partial render-results xtdb-node)]])))
+       (partial render-results prefix xtdb-node)]])))

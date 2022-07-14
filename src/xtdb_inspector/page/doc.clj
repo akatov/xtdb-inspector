@@ -51,7 +51,7 @@
     [:td.px-2.py-2
      (val-fn)]]))
 
-(defn entity-history [db id ]
+(defn entity-history [prefix db id ]
   (let [history (xt/entity-history db id :asc {:with-docs? true})
         changes (reverse (changes history))
         initial (last changes)]
@@ -80,7 +80,7 @@
                [::h/when old-val
                 [:div.line-through old-val]]
                [::h/when new-val
-                [:div (ui/format-value (constantly false) new-val)]]])))]]]]])))
+                [:div (ui/format-value prefix (constantly false) new-val)]]])))]]]]])))
 
 (defn links-to [xtdb id]
   (let [attrs
@@ -103,7 +103,7 @@
                  [attr from])))
             attrs))))
 
-(defn render-links-to [links]
+(defn render-links-to [prefix links]
   (h/html
    [:div
     [:table.font-mono {:class "w-9/12"}
@@ -115,7 +115,7 @@
       [::h/for [[attr from] links
                 :let [attr-name (pr-str attr)]]
        (attr-val-row attr-name
-                     #(ui/format-value (constantly true) from))]]]]))
+                     #(ui/format-value prefix (constantly true) from))]]]]))
 
 
 (defn- update-doc! [xtdb-node entity-id attribute value]
@@ -190,14 +190,14 @@
 (defn- inline-doc-view
   "Component to allow drilling down to nested documents inline without
   navigating to them."
-  [xtdb-node _db id]
+  [prefix xtdb-node _db id]
   (let [[show set-show!] (source/use-state false)]
     (h/html
      [:div {:class [::h/live (source/computed #(str "collapse collapse-"
                                                     (if % "open" "close"))
                                               show)]}
       [:div ;; .collapse-title has way too much padding
-       (ui/format-value (constantly true) id)
+       (ui/format-value prefix (constantly true) id)
 
        [::h/live show
         #(h/html [:button.btn.btn-square.btn-xs.ml-1.btn-info
@@ -205,9 +205,9 @@
                   [::h/if % "-" "+"]])]]
       [:div.collapse-content
        [::h/when show
-        (render-doc-data xtdb-node id (doc-source xtdb-node id))]]])))
+        (render-doc-data prefix xtdb-node id (doc-source xtdb-node id))]]])))
 
-(defn- render-editable-value [xtdb-node db entity-id [k v]]
+(defn- render-editable-value [prefix xtdb-node db entity-id [k v]]
   (let [[edit? set-edit!] (source/use-state false)]
     (h/html
      [::h/live edit?
@@ -218,8 +218,8 @@
              [:div.hover-trigger
               [:div.flex
                [::h/if id
-                (inline-doc-view xtdb-node db v)
-                (ui/format-value (constantly id) v)]
+                (inline-doc-view prefix xtdb-node db v)
+                (ui/format-value prefix (constantly id) v)]
                [:div.flex-grow.flex.justify-end.items-start
                 [:button.hover-target.fixed.bg-blue-500.rounded.px-1
                  {:on-click #(set-edit! true)}
@@ -238,14 +238,16 @@
        {:on-click "s=document.getElementById('doc-id');s.select();navigator.clipboard.writeText(s.value);"}
        "copy"]])))
 
-(defn- render-doc-data [xtdb-node id entity-source]
+(defn- render-doc-data [prefix xtdb-node id entity-source]
   (ui.table/table
    {:key key
     :class "table table-compact table-zebra w-full"
     :columns [{:label "Attribute" :accessor key
                :render ui.edn/edn}
               {:label "Value" :accessor val
-               :render-full (partial render-editable-value xtdb-node
+               :render-full (partial render-editable-value
+                                     prefix
+                                     xtdb-node
                                      (xt/db xtdb-node)
                                      id)}]
     :order [key :asc]
@@ -261,29 +263,29 @@
          '{:find [(pull e [*])]
            :in [e]} id)))
 
-(defn render [{:keys [xtdb-node request] :as _ctx}]
+(defn render [prefix {:keys [xtdb-node request] :as _ctx}]
   (let [id (some-> request :params :doc-id id/read-doc-id)
         entity-source (doc-source xtdb-node id)
         [show-history-source set-show-history!] (source/use-state false)]
     (h/html
      [:div
       (render-doc-id-header id)
-      (render-doc-data xtdb-node id entity-source)
+      (render-doc-data prefix xtdb-node id entity-source)
 
       [:h3.bg-gray-300 "Links from other documents"]
       [::h/live (future (links-to xtdb-node id))
-       render-links-to]
+       (partial render-links-to prefix)]
 
       [::h/live show-history-source
        (fn [show?]
          (h/html
           [:div
            [::h/if show?
-            (entity-history (xt/db xtdb-node) id)
+            (entity-history prefix (xt/db xtdb-node) id)
             [:button {:on-click #(set-show-history! true)}
              "Show history"]]]))]])))
 
-(defn render-form [ctx]
+(defn render-form [prefix ctx]
   (let [doc (atom nil)
         set-doc! (fn [value]
                    (binding [*read-eval* false]
@@ -303,5 +305,5 @@
       (js/eval-js-from-source
        (source/c=
         (when %doc
-          (str "window.location.pathname += \"/"
+          (str "window.location.pathname += \"/" ;; TODO maybe add prefix here?
                (id/doc-id-param %doc) "\""))))]))  )

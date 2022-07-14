@@ -78,16 +78,18 @@
    query-results))
 
 (defmethod render-widget :query
-  [{:keys [db query-results query]}]
+  [{:keys [prefix db query-results query]}]
   (page.query/query-results-table
+   prefix
    db
    (page.query/unpack-find-defs query)
    query-results))
 
-
 (defn- widget-container
-  [{:keys [label col-span db] :as widget
-    :or {col-span 1}} widget-source]
+  [prefix
+   {:keys [label col-span db] :as widget
+    :or {col-span 1}}
+   widget-source]
   (let [class (str "card bg-base-100 shadow-xl "
                    (case col-span
                      1 ""
@@ -100,6 +102,7 @@
        [:div.card-title label]
        (render-widget (assoc widget
                              :db db
+                             :prefix prefix
                              :query-results
                              (source/computed :query-results widget-source)))]])))
 
@@ -115,7 +118,7 @@
       (swap! state assoc-in [:widgets id :query-results]
              (apply xt/q db query params)))))
 
-(defn render [{:keys [xtdb-node request]}]
+(defn render [prefix {:keys [xtdb-node request]}]
   (let [dashboard-name (get-in request [:route-params :dashboard])
         dashboard (ffirst
                    (xt/q (xt/db xtdb-node)
@@ -138,7 +141,7 @@
        ;; PENDING: when source updates, widget should use later db as well
        (widget-container (assoc w :db db) (widget-source w))]])))
 
-(defn render-listing [{:keys [xtdb-node]}]
+(defn render-listing [prefix {:keys [xtdb-node]}]
   (let [dashboards (xt/q (xt/db xtdb-node)
                          '{:find [(pull d [:xtdb-inspector.dashboard/name
                                            :xtdb-inspector.dashboard/description])]
@@ -147,7 +150,7 @@
      [:div "Available dashboards:"
       [:ul
        [::h/for [[{:xtdb-inspector.dashboard/keys [name description]}] dashboards]
-        [:li (ui/link (str "/dashboard/" name) name) " " description]]
+        [:li (ui/link (str prefix "/dashboard/" name) name) " " description]]
        [::h/when (empty? dashboards)
         [:div.alert.alert-warning
          "No dashboards defined."]]]])))

@@ -76,30 +76,30 @@
   (with-open [log (xt/open-tx-log xtdb-node (dec tx-id) true)]
     (::xt/tx-ops (.next log))))
 
-(defn tx-op-card [{:keys [operation id payload valid-time-start valid-time-end] :as _tx-op}]
+(defn tx-op-card [prefix {:keys [operation id payload valid-time-start valid-time-end] :as _tx-op}]
   (let [op-name (name operation)]
     (h/html
      [:div.card.bg-base-100.w-full.shadow-xl.mb-2
       [:div.card-body
        [:div.card-title
         [:h2 op-name " "
-         (ui/format-value (constantly true) id)]]
+         (ui/format-value prefix (constantly true) id)]]
        [:div
         (ui.edn/edn payload)]
 
        [::h/when valid-time-start
         [:div
          "Valid time start: "
-         (ui/format-value (constantly false) valid-time-start)]]
+         (ui/format-value prefix (constantly false) valid-time-start)]]
        [::h/when valid-time-end
         [:div
          "Valid time end: "
-         (ui/format-value (constantly false) valid-time-end)]]]])))
+         (ui/format-value prefix (constantly false) valid-time-end)]]]])))
 
-(defn tx-details [xtdb-node tx-details-source]
+(defn tx-details [prefix xtdb-node tx-details-source]
   (collection/live-collection
    {:key identity
-    :render tx-op-card
+    :render (partial tx-op-card prefix)
     :source (source/computed
              #(let [{id ::xt/tx-id} %]
                 (when id
@@ -108,7 +108,7 @@
                         (fetch-tx-ops xtdb-node (::xt/tx-id %)))))
              tx-details-source)}))
 
-(defn render [{:keys [xtdb-node] :as _ctx}]
+(defn render [prefix {:keys [xtdb-node] :as _ctx}]
   (let [[tx-details-source set-tx!] (source/use-state {})]
     (h/html
      [:div.transactions.flex
@@ -118,4 +118,4 @@
       [:div.divider.divider-horizontal]
       [:div {:class "w-4/6"}
        [:h3 "Transaction details"]
-       (tx-details xtdb-node tx-details-source)]])))
+       (tx-details prefix xtdb-node tx-details-source)]])))

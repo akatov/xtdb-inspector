@@ -7,17 +7,20 @@
 (defonce xtdb (atom nil))
 (defonce server (atom nil))
 
-(defn start []
-  (println "Starting dev instance with in-memory XTDB in port 3000")
-  (swap! xtdb #(or % (xt/start-node {:xtdb.lucene/lucene-store {}
-                                     :xtdb.metrics/metrics {}
-                                     :xtdb-inspector.metrics/reporter {}})))
-  (swap! server
-         (fn [old-server]
-           (when old-server
-             (old-server))
-           (inspector/start {:xtdb-node @xtdb
-                             :port 3000}))))
+(defn start
+  ([] (start ""))
+  ([prefix]
+   (println "Starting dev instance with in-memory XTDB on port 3000 with prefix" prefix)
+   (swap! xtdb #(or % (xt/start-node {:xtdb.lucene/lucene-store {}
+                                      :xtdb.metrics/metrics {}
+                                      :xtdb-inspector.metrics/reporter {}})))
+   (swap! server
+          (fn [old-server]
+            (when old-server
+              (old-server))
+            (inspector/start {:xtdb-node @xtdb
+                              :port 3000
+                              :prefix prefix})))))
 
 (defn some-docs []
   ;; insert some docs for testing

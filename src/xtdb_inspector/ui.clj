@@ -45,14 +45,14 @@
 
 (defn format-value
   "Format a given value, if it is a valid id, render a link to view it."
-  [is-id? value]
+  [prefix is-id? value]
   (if (vector? value)
     (h/html
      [:ul
       [::h/for [v value]
-       [:li (format-value is-id? v)]]])
+       [:li (format-value prefix is-id? v)]]])
     (let [href (when (is-id? value)
-                 (str "/doc/" (id/doc-id-param value)))
+                 (str prefix "/doc/" (id/doc-id-param value)))
           disp (display value)
           custom-display? (not= ::no-custom-display disp)
           stringified (if-not custom-display?
